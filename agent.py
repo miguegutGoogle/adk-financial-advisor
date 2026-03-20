@@ -31,7 +31,7 @@ def enforce_disclaimer(callback_context: CallbackContext) -> Optional[types.Cont
         callback_context.state["disclaimer_shown"] = True
         return types.Content(
             role="model",
-            parts=[types.Part(text="### ⚠️ Legal Disclaimer: this is for informational and educational purposes only.\nPlease consult a financial advisor before making any investment decisions. ⚠️\n\n which ticker would you like to analyze?")],
+            parts=[types.Part(text="⚠️ Legal Disclaimer: this is for informational and educational purposes only ⚠️\n\n\n # Which ticker would you like to analyze?")],
         )
     return None
 
@@ -115,6 +115,5 @@ pro_advisor = LlmAgent(
     sub_agents=[data_analyst],
     before_agent_callback=enforce_disclaimer
 )
-
 
 root_agent = pro_advisor
