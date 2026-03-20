@@ -19,6 +19,10 @@ from google.adk.models import LlmRequest, LlmResponse
 from google.genai import types
 import yfinance as yf  # Library to fetch real web stock data
 from typing import Optional, Any
+from google import genai
+
+# Initialize the internal Gemini client for intent analysis in callbacks
+intent_client = genai.Client()
 
 # =====================================================================
 # 1. CALLBACK DEFINITIONS
@@ -31,7 +35,7 @@ def enforce_disclaimer(callback_context: CallbackContext) -> Optional[types.Cont
         callback_context.state["disclaimer_shown"] = True
         return types.Content(
             role="model",
-            parts=[types.Part(text="⚠️ Legal Disclaimer: this is for informational and educational purposes only ⚠️\n\n\n # Which ticker would you like to analyze?")],
+            parts=[types.Part(text="⚠️ Legal Disclaimer: this is for informational and educational purposes only ⚠️\n\n\n #### Which ticker would you like to analyze?")],
         )
     return None
 
@@ -60,6 +64,50 @@ def block_crypto_tool(tool, args: dict[str, Any], tool_context: ToolContext) -> 
         print(f"[TOOL BLOCKED] Cannot analyze crypto: {ticker}")
         return {"error": "Crypto analysis is restricted by company policy."}
     return None
+
+# Intent Callback: Intercepts requests for financial advice
+async def intercept_financial_advice(callback_context: CallbackContext) -> Optional[types.Content]:
+    # 1. Extract the latest user message
+    user_text = ""
+    if callback_context.user_content and callback_context.user_content.parts:
+        user_text = callback_context.user_content.parts[0].text
+
+    if not user_text:
+        return None
+
+    # 2. Use the intent_client to analyze the user's prompt
+    prompt = f"""
+    Analyze the following user input: "{user_text}"
+    
+    Determine if the user is asking for explicit financial advice (e.g., "should I buy", "is it a good investment", "give me a recommendation").
+    
+    Respond with ONLY the word 'BLOCKED' if it is financial advice.
+    Respond with ONLY the word 'ALLOWED' if they are just asking for data or analysis of a ticker.
+    """
+    
+    try:
+        # Use the global intent_client here instead of callback_context.client
+        response = await intent_client.aio.models.generate_content(
+            model="gemini-2.5-flash", 
+            contents=prompt
+        )
+        
+        decision = response.text.strip().upper()
+
+        # 3. If the intent is blocked, return a Content object to stop the agent execution
+        if "BLOCKED" in decision:
+            print(f"[INTENT BLOCKED] User asked for advice: {user_text}")
+            return types.Content(
+                role="model",
+                parts=[types.Part(text="⚠️ I cannot provide explicit financial advice or buy/sell recommendations. I am restricted to providing market data and technical analysis only.")]
+            )
+    except Exception as e:
+        print(f"Error in intent analysis: {e}")
+        # Optionally allow the request to proceed if the check fails
+        return None
+
+    return None
+
 
 # =====================================================================
 # 2. REAL WEB-FETCHING TOOL
@@ -113,7 +161,7 @@ pro_advisor = LlmAgent(
     step 4. IMPORTANT!!!! ALWAYS ask the user if they have follow-up questions or another ticker to analyze. 
     """,
     sub_agents=[data_analyst],
-    before_agent_callback=enforce_disclaimer
+    before_agent_callback=[enforce_disclaimer, intercept_financial_advice]
 )
 
 root_agent = pro_advisor
