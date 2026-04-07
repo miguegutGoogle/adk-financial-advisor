@@ -49,7 +49,7 @@ async def cache_googl_analysis(callback_context: CallbackContext, llm_request: L
         return LlmResponse(
             content=types.Content(
                 role="model",
-                parts=[types.Part(text="**GOOGL Analysis (Cached):\n** High growth in AI/Cloud...")]
+                parts=[types.Part(text="**GOOGL Analysis (Cached)**\n\n**Ticker:** GOOGL\n\n**Current Price:** $305.46\n\n**Industry:** Internet Content & Information\n\n**Summary:** Alphabet Inc. operates globally, offering a wide range of products and platforms through its Google Services (ads, Android, Chrome, devices, Gmail, Google Drive, Google Maps, Google Photos, Google Play, Search, and YouTube), Google Cloud, and Other Bets segments. It also sells apps, in-app purchases, and digital content.\n**Follow-up:** Do you have any questions about GOOGL?")]
             )
         )
     return None
